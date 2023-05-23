@@ -36,12 +36,15 @@ def relationship_status(from_member, to_member, social_graph):
         "friends" if fromMember and toMember follow each other,
         "no relationship" if neither fromMember nor toMember follow each other.
     '''
-    if from_member in social_graph.get(to_member, {}).get('following', []):
-        if to_member in social_graph.get(from_member, {}).get('following', []):
-            return "friends"
-        return "follower"
-    elif to_member in social_graph.get(from_member, {}).get('following', []):
+    from_member_following = social_graph[from_member]["following"]
+    to_member_following = social_graph[to_member]["following"]
+
+    if from_member in to_member_following and to_member in from_member_following:
+        return "friends"
+    elif from_member in to_member_following:
         return "followed by"
+    elif to_member in from_member_following:
+        return "following"
     else:
         return "no relationship"
 
@@ -66,23 +69,29 @@ def tic_tac_toe(board):
     str
         the symbol of the winner or "NO WINNER" if there is no winner
     '''
-    size = len(board)
-
-    # Check rows
+# Check rows
     for row in board:
-        if len(set(row)) == 1 and row[0] != '':
-            return row[0]
+        if all(x == "X" for x in row):
+            return "X"
+        elif all(x == "O" for x in row):
+            return "O"
 
-    # Check columns
-    for col in range(size):
-        if len(set(board[row][col] for row in range(size))) == 1 and board[0][col] != '':
-            return board[0][col]
-
-    # Check diagonals
-    if len(set(board[i][i] for i in range(size))) == 1 and board[0][0] != '':
-        return board[0][0]
-    if len(set(board[i][size - i - 1] for i in range(size))) == 1 and board[0][size - 1] != '':
-        return board[0][size - 1]
+# Check columns
+    for col in range(len(board[0])):
+        if all(board[row][col] == "X" for row in range(len(board))):
+            return "X"
+        elif all(board[row][col] == "O" for row in range(len(board))):
+            return "O"
+        
+# Check diagonals
+    if all(board[i][i] == "X" for i in range(len(board))):
+        return "X"
+    elif all(board[i][i] == "O" for i in range(len(board))):
+        return "O"
+    elif all(board[i][len(board)-i-1] == "X" for i in range(len(board))):
+        return "X"
+    elif all(board[i][len(board)-i-1] == "O" for i in range(len(board))):
+        return "O"
 
     return "NO WINNER"
 
@@ -112,72 +121,27 @@ def eta(first_stop, second_stop, route_map):
     int
         the time it will take the shuttle to travel from first_stop to second_stop
     '''
-    current_stop = first_stop
-    travel_time = 0
+# Transform route_map into an adjacency matrix
+    route_matrix = {}
 
-    while current_stop != second_stop:
-        next_stop = route_map.get(current_stop)
-        if next_stop is None:
-            return -1  # Invalid route
+    for leg, info in route_map.items():
+        start, end = leg
+        travel_time = info["travel_time_mins"]
+        if start not in route_matrix:
+            route_matrix[start] = {}
+        route_matrix[start][end] = travel_time
 
-        travel_time += next_stop.get('travel_time_mins', 0)
-        current_stop = next_stop.get('next_stop')
+ # Perform a BFS to find the shortest path
+    queue = [(first_stop, 0)]
+    visited = set()
 
-        if current_stop == first_stop:
-            return -1  # Infinite loop detected
+    while queue:
+        stop, time = queue.pop(0)
+        visited.add(stop)
+        if stop == second_stop:
+            return time
+        for neighbor, travel_time in route_matrix[stop].items():
+            if neighbor not in visited:
+                queue.append((neighbor, time + travel_time))
 
-    return travel_time
-
-
-# Sample data for Relationship Status
-social_graph = {
-    "@bongolpoc": {
-        "first_name": "Joselito",
-        "last_name": "Olpoc",
-        "following": []
-    },
-    "@joaquin": {
-        "first_name": "Joaquin",
-        "last_name": "Gonzales",
-        "following": ["@chums", "@jobenilagan"]
-    },
-    "@chums": {
-        "first_name": "Matthew",
-        "last_name": "Uy",
-        "following": ["@bongolpoc", "@miketan", "@rudyang", "@joeilagan"]
-    },
-    "@jobenilagan": {
-        "first_name": "Joben",
-        "last_name": "Ilagan",
-        "following": ["@eeebeee", "@joeilagan", "@chums", "@joaquin"]
-    },
-    "@joeilagan": {
-        "first_name": "Joe",
-        "last_name": "Ilagan",
-        "following": ["@eeebeee", "@jobenilagan", "@chums"]
-    },
-    "@eeebeee": {
-        "first_name": "Elizabeth",
-        "last_name": "Ilagan",
-        "following": ["@jobenilagan", "@joeilagan"]
-    },
-}
-
-# Sample data for Tic Tac Toe
-board1 = [
-    ['X', 'X', 'O'],
-    ['O', 'X', 'O'],
-    ['O', '', 'X'],
-]
-
-# Sample data for ETA
-route_map = {
-    'a1': {'next_stop': 'a2', 'travel_time_mins': 10},
-    'a2': {'next_stop': 'b1', 'travel_time_mins': 10230},
-    'b1': {'next_stop': 'a1', 'travel_time_mins': 1},
-}
-
-# Test the functions with the sample data
-print(relationship_status("@joaquin", "@chums", social_graph))
-print(tic_tac_toe(board1))
-print(eta('a1', 'a2', route_map))
+    return -1
